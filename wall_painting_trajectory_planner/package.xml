@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>wall_painting_trajectory_planner</name>
+  <version>0.0.1</version>
+  <description>Task planner for wall-painting demo</description>
+  <author email="carlo_wiesse@artc.a-star.edu.sg">Carlo</author>
+  <maintainer email="carlo_wiesse@artc.a-star.edu.sg">Carlo</maintainer>
+  <license>Apache License 2.0</license>
+
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>task_msgs</depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
