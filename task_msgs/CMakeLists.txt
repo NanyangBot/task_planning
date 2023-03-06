@@ -22,10 +22,14 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/DistanceMapSlice.msg"
-  DEPENDENCIES std_msgs geometry_msgs
+set(srv_files
+  "srv/DistanceMap.srv"
+  "srv/Trigger.srv"
 )
+
+rosidl_generate_interfaces(${PROJECT_NAME} 
+  ${srv_files}
+  DEPENDENCIES std_msgs geometry_msgs)
 
 ament_export_dependencies(rosidl_default_runtime std_msgs geometry_msgs)
 
