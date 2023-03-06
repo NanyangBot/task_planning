@@ -3,7 +3,7 @@
 <package format="3">
   <name>wall_painting_trajectory_planner</name>
   <version>0.0.1</version>
-  <description>Task planner for wall-painting demo</description>
+  <description>Trajectory planner for wall-painting demo</description>
   <author email="carlo_wiesse@artc.a-star.edu.sg">Carlo</author>
   <maintainer email="carlo_wiesse@artc.a-star.edu.sg">Carlo</maintainer>
   <license>Apache License 2.0</license>
