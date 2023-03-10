@@ -2,11 +2,8 @@ import sys
 import cv2
 import rclpy
 from rclpy.node import Node
-from nav_msgs.msg import Path
-from visualization_msgs.msg import Marker, MarkerArray
-from wall_painting_trajectory_planner.trajectory_planner import TrajectoryPlanner
 from task_msgs.srv import DistanceMap, Trigger
-from geometry_msgs.msg import PoseStamped
+from wall_painting_trajectory_planner.trajectory_planner import TrajectoryPlanner
 
 ###############################################################################
 
@@ -16,12 +13,6 @@ class TrajectoryPlannerNode(Node):
 
         self.busy = False
         self.planner = TrajectoryPlanner()
-
-        self.path_pub = self.create_publisher(
-            Path, 'wall_painting_trajectory_planner/path', 1)
-
-        self.canvas_pub = self.create_publisher(
-            MarkerArray, 'wall_painting_trajectory_planner/canvas', 1)
 
         self.trigger_srv = self.create_service(
             Trigger, 'wall_painting_trajectory_planner/trigger', self.task_cb)
@@ -61,14 +52,12 @@ class TrajectoryPlannerNode(Node):
 
         self.planner.set_planning_scene(input_task_image, distance_map)
 
-        path_msg = self.planner.get_path()
-        self.path_pub.publish(path_msg)
-
-        canvas_msg = self.planner.get_canvas()
-        self.canvas_pub.publish(canvas_msg)
+        path = self.planner.get_path()
+        wall = self.planner.get_wall()
 
         response.success = True
-        response.message = ''
+        response.path = path
+        response.wall = wall
         self.busy = False
         return response
 

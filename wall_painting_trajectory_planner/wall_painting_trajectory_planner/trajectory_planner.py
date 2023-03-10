@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Quaternion, Pose, Point
+from visualization_msgs.msg import Marker, MarkerArray
+from nav_msgs.msg import Path
 
 ###############################################################################
 
@@ -91,8 +93,8 @@ class TrajectoryPlanner:
 
         return q
 
-    def get_canvas(self):
-        canvas_msg = MarkerArray()
+    def get_wall(self):
+        wall_msg = MarkerArray()
         for i in range(self.cleft,self.cleft+self.cw):
             for j in range(self.cupper,self.cupper-self.ch):
                 m = Marker()
@@ -107,8 +109,8 @@ class TrajectoryPlanner:
                 m.color.b = 0.0
                 m.color.a = 1.0
                 m.type = 2
-                canvas_msg.markers.append(m)
-        return canvas_msg
+                wall_msg.markers.append(m)
+        return wall_msg
 
     def get_path(self):
         path_msg = Path()

@@ -20,7 +20,9 @@ message( STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}" )
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 set(srv_files
   "srv/DistanceMap.srv"
@@ -29,9 +31,10 @@ set(srv_files
 
 rosidl_generate_interfaces(${PROJECT_NAME} 
   ${srv_files}
-  DEPENDENCIES std_msgs geometry_msgs)
+  DEPENDENCIES std_msgs geometry_msgs nav_msgs visualization_msgs)
 
-ament_export_dependencies(rosidl_default_runtime std_msgs geometry_msgs)
+ament_export_dependencies(rosidl_default_runtime std_msgs geometry_msgs
+    nav_msgs visualization_msgs)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
