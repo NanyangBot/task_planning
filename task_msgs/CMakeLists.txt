@@ -25,12 +25,17 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
 set(srv_files
-  "srv/DistanceMap.srv"
-  "srv/Trigger.srv"
+  "srv/DistanceMapSrv.srv"
+  "srv/TaskPlanning.srv"
+)
+
+set(msg_files
+  "msg/DistanceMapMsg.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME} 
   ${srv_files}
+  ${msg_files}
   DEPENDENCIES std_msgs geometry_msgs nav_msgs visualization_msgs)
 
 ament_export_dependencies(rosidl_default_runtime std_msgs geometry_msgs

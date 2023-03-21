@@ -2,7 +2,7 @@ import sys
 import cv2
 import rclpy
 from rclpy.node import Node
-from task_msgs.srv import DistanceMap, Trigger
+from task_msgs.srv import DistanceMapSrv, TaskPlannig
 from wall_painting_trajectory_planner.trajectory_planner import TrajectoryPlanner
 
 ###############################################################################
@@ -15,12 +15,12 @@ class TrajectoryPlannerNode(Node):
         self.planner = TrajectoryPlanner()
 
         self.trigger_srv = self.create_service(
-            Trigger, 'wall_painting_trajectory_planner/trigger', self.task_cb)
+            TaskPlannig, 'wall_painting_trajectory_planner/trigger', self.task_cb)
 
-        self.distance_map_cli = self.create_client(DistanceMap, 'wall_painting_trajectory_planner/distance_map')
+        self.distance_map_cli = self.create_client(DistanceMapSrv, 'wall_painting_trajectory_planner/distance_map')
         while not self.distance_map_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
-        self.req = DistanceMap.Request()
+            self.get_logger().warn('service not available, waiting again...')
+        self.req = DistanceMapSrv.Request()
 
         self.get_logger().info('Ready to accept Task Request')
 
@@ -34,6 +34,7 @@ class TrajectoryPlannerNode(Node):
         if self.busy:
             response.success = False
             response.message = 'Busy with previous task request'
+            self.get_logger().warn(response.message)
             return response
 
         self.busy = True
@@ -42,13 +43,23 @@ class TrajectoryPlannerNode(Node):
         if input_task_image is None:
             response.success = False
             response.message = "Can't open/read input image file: check file"
+            self.get_logger().warn(response.message)
             self.busy = False
             return response
 
         self.get_logger().info('Task received')
 
-        distance_map = self.send_request()
+        vision_response = self.send_request()
+
+        if not vision_response.success:
+            response.success = False
+            response.message = "Failed to get map from vision service"
+            self.get_logger().warn(response.message)
+            self.busy = False
+            return response
+
         self.get_logger().info('Map received')
+        distance_map = vision_response.dmap
 
         self.planner.set_planning_scene(input_task_image, distance_map)
 

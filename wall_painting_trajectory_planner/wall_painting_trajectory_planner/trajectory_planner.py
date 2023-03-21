@@ -2,7 +2,7 @@ import math
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from geometry_msgs.msg import Quaternion, Pose, Point
+from geometry_msgs.msg import Quaternion, PoseStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Path
 
@@ -34,15 +34,15 @@ class TrajectoryPlanner:
         self.resolution = distance_map.resolution
         self.cw = distance_map.canvas_width
         self.ch = distance_map.canvas_height
-        self.cleft = distance_map.canvas_leftmost_pixel
-        self.cupper = distance_map.canvas_uppermost_pixel
+        self.cleft = distance_map.canvas_origin.x
+        self.cupper = distance_map.canvas_origin.y
         self.task = self.get_task_from_image(input_task_image)
 
     def get_task_from_image(self, input_task_image):
         input_task_image_reshaped = np.reshape(input_task_image, (self.cw, self.ch))
         input_task_image_reshaped = cv2.threshold(input_task_image_reshaped, 175, 255, cv2.THRESH_BINARY)[1]
         task_map = np.ones(self.map.shape,int)*255
-        task_map[cleft:cleft+cw,cupper:cupper-ch] = input_task_image_reshaped
+        task_map[self.cleft:self.cleft+self.cw,self.cupper:self.cupper-self.ch] = input_task_image_reshaped
         task = np.where(task_map<255)
         return task
 

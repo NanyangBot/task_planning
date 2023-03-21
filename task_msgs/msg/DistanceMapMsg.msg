@@ -1,4 +1,3 @@
----
 std_msgs/Header header
 
 # How big each "pixel" in the map is.
@@ -8,17 +7,19 @@ float32 resolution
 uint32 width
 uint32 height
 
-# The location of the "origin" (upper left point) of the image. This refers to
+# The location of the "origin" (upper left) of the image. This refers to
 # the "upper-left" of the upper left most pixel as well.
+# TODO(helen): In the future, potentially switch to pose instead.
 geometry_msgs/Point origin
 
 # canvas_width is along the x axis and canvas_height is along the y axis.
 uint32 canvas_width
 uint32 canvas_height
 
-# Pixel coordinates of the upper left most pixel of the drawing area w.r.t the whole image.
-uint32 canvas_leftmost_pixel
-uint32 canvas_uppermost_pixel
+# The location of the "origin" (upper left) of the drawing area. This refers to
+# the "upper-left" of the upper left most pixel as well.
+# TODO(helen): In the future, potentially switch to pose instead.
+geometry_msgs/Point canvas_origin
 
 # Which value is used for "unknown" cells.
 float32 unknown_value

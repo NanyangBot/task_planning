@@ -1,0 +1,6 @@
+string task_file_location
+---
+bool success   # indicate successful run of triggered service
+string message # informational, e.g. for error messages
+nav_msgs/Path path
+visualization_msgs/MarkerArray wall
