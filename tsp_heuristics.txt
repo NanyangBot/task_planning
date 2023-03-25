@@ -1,0 +1,22 @@
+Heuristic 1 : (Second Min of previous point + First Min of current point) / 2
+
+Time:  0.0018978118896484375  s
+---
+Minimum cost : 10.242640687119286
+Path Taken :  2 1 0 3 4 6 5 7 8 9
+
+
+Heuristic 2 : Second Min of previous point^2 + First Min of current point^2
+
+Time:  0.09615159034729004  s
+---
+Minimum cost : 9.828427124746192
+Path Taken :  2 1 0 3 4 6 5 7 9 8
+
+
+Heuristic 3 : Second Min of previous point + First Min of current point
+
+Time:  0.053966522216796875  s
+---
+Minimum cost : 9.828427124746192
+Path Taken :  2 1 0 3 4 6 5 7 9 8 

@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
           'start = wall_painting_trajectory_planner.trajectory_planner_node:main',
+          'debug = wall_painting_trajectory_planner.trajectory_planner_node_debug:main',
         ],
     },
 )

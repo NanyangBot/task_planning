@@ -1,10 +1,10 @@
-import math
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Quaternion, PoseStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Path
+from wall_painting_trajectory_planner.tsp_solver import TSPsolver
 
 ###############################################################################
 
@@ -21,30 +21,42 @@ class TrajectoryPlanner:
         self.frame = None
         self.origin = None
         self.resolution = None
+        self.w = None
+        self.h = None
         self.cw = None
         self.ch = None
         self.cleft = None
-        self.cupper = None
+        self.ctop = None
         self.task = None
+        self.tsp = TSPsolver()
 
     def set_planning_scene(self, input_task_image, distance_map):
         self.map = np.reshape(distance_map.data,(distance_map.width,distance_map.height))
         self.frame = distance_map.header.frame_id
         self.origin = [distance_map.origin.x, distance_map.origin.y, distance_map.origin.z]
         self.resolution = distance_map.resolution
+        self.w = distance_map.width
+        self.h = distance_map.height
         self.cw = distance_map.canvas_width
         self.ch = distance_map.canvas_height
         self.cleft = distance_map.canvas_origin.x
-        self.cupper = distance_map.canvas_origin.y
+        self.ctop = distance_map.canvas_origin.y
         self.task = self.get_task_from_image(input_task_image)
 
     def get_task_from_image(self, input_task_image):
-        input_task_image_reshaped = np.reshape(input_task_image, (self.cw, self.ch))
-        input_task_image_reshaped = cv2.threshold(input_task_image_reshaped, 175, 255, cv2.THRESH_BINARY)[1]
-        task_map = np.ones(self.map.shape,int)*255
-        task_map[self.cleft:self.cleft+self.cw,self.cupper:self.cupper-self.ch] = input_task_image_reshaped
-        task = np.where(task_map<255)
-        return task
+        blur = cv2.blur(input_task_image, (35, 35))
+        thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
+        res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
+        rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        flip = cv2.flip(rot, 0)
+        task_map = np.zeros(self.map.shape,int)
+        task_map[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(flip)
+        pts = np.where(task_map>0)
+        pts = np.array(pts).T
+        adj = [np.linalg.norm(pts-p,axis=1).tolist() for p in pts]
+        path = self.tsp.solve(adj)
+        new_pts = pts[path].T
+        return new_pts
 
     def get_position_at_(self,y,z):
         p = Point()
@@ -95,8 +107,8 @@ class TrajectoryPlanner:
 
     def get_wall(self):
         wall_msg = MarkerArray()
-        for i in range(self.cleft,self.cleft+self.cw):
-            for j in range(self.cupper,self.cupper-self.ch):
+        for i in range(int(self.cleft),int(self.cleft+self.cw)):
+            for j in range(int(self.ctop),int(self.ctop+self.ch)):
                 m = Marker()
                 m.id = int(str(i)+str(j))
                 m.pose.position = self.get_position_at_(i,j)
@@ -115,8 +127,9 @@ class TrajectoryPlanner:
     def get_path(self):
         path_msg = Path()
         path_msg.header.frame_id = self.frame
+        print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
-            print("Processing Point %d in Path" % (i+1))
+            print(i+1, end=' ')
             p = PoseStamped()
             p.pose.position = self.get_position_at_(y,z)
             p.pose.orientation = self.get_orientation_at_(y,z)
