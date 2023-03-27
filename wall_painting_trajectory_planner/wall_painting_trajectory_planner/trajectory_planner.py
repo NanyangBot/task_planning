@@ -67,6 +67,7 @@ class TrajectoryPlanner:
         self.ch = distance_map.canvas_height
         self.cleft = distance_map.canvas_origin.x
         self.ctop = distance_map.canvas_origin.y
+        self.unknown_value = distance_map.unknown_value
 
     def plan_task(self, input_image):
         self.task = self.get_task_from_image(input_image)
@@ -98,7 +99,8 @@ class TrajectoryPlanner:
         print('------------>  here', self.cleft, self.ctop, self.cw, self.ch)
         dmap = np.zeros(self.map.T.shape,int)
         print('image:',crop.shape,' - dmap:',dmap.shape)
-        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
+        #dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
+        dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
         print(pts)
 
@@ -144,8 +146,9 @@ class TrajectoryPlanner:
     def get_position_at_(self,y,z):
         p = Point()
         p.z = self.origin[2]- z * self.resolution
-        p.y = self.origin[1]- y * self.resolution
-        p.x = self.map[z,y].item()
+        # p.y = self.origin[1]- y * self.resolution
+        p.y = self.origin[1]+ y * self.resolution
+        p.x = -self.map[z,y].item()
         return p
 
     def get_orientation_at_(self,y,z,n=3,verbose=False):
@@ -165,7 +168,7 @@ class TrajectoryPlanner:
         errors = b - np.dot(A,fit)
 
         n = [-i[0] if fit[0][0]<0 else i[0] for i in fit]
-        quat = get_quaternion(n)
+        quat = get_quaternion(n,[-1, 0, 0])
         q = Quaternion()
         q.x = quat[0]
         q.y = quat[1]
@@ -194,6 +197,8 @@ class TrajectoryPlanner:
         #     for j in range(int(self.ctop),int(self.ctop+self.ch)):
         for i in range(int(self.w)):
             for j in range(int(self.h)):
+                if self.map[j,i].item() == self.unknown_value:
+                    continue
                 m = Marker()
                 m.id = i*self.h+j
                 m.pose.position = self.get_position_at_(i,j)
@@ -216,6 +221,9 @@ class TrajectoryPlanner:
         print('- Plane Estimation -')
         print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
+            if self.map[z,y].item() == self.unknown_value:
+                print('-', end=' ')
+                continue
             p = PoseStamped()
             p.pose.position = self.get_position_at_(y,z)
             p.pose.orientation = self.get_orientation_at_(y,z)
