@@ -76,17 +76,20 @@ class TrajectoryPlannerNode(Node):
         self.get_logger().info('Map received')
         distance_map = vision_response.dmap
 
-        self.planner.set_planning_scene(input_task_image, distance_map)
-
-        path = self.planner.get_path()
+        self.planner.set_planning_scene(distance_map)
         wall = self.planner.get_wall()
+        self.wall_pub.publish(wall)
+        
+        self.planner.plan_task(input_task_image)
+        path = self.planner.get_path()
+        self.path_pub.publish(path)
 
         response.success = True
         response.path = path
         response.wall = wall
         
-        self.path_pub.publish(path)
-        self.wall_pub.publish(wall)
+        #self.path_pub.publish(path)
+        #self.wall_pub.publish(wall)
 
         self.busy = False
         return response

@@ -55,13 +55,14 @@ class TrajectoryPlannerNode(Node):
         self.dmap = msg
         self.get_logger().info('Distance Map received')
 
-        self.planner.set_planning_scene(self.task, self.dmap)
-
-        path_msg = self.planner.get_path()
-        wall_msg = self.planner.get_wall()
-
-        self.wall_pub.publish(wall_msg)
-        self.path_pub.publish(path_msg)
+        self.planner.set_planning_scene(self.dmap)
+        wall = self.planner.get_wall()
+        self.wall_pub.publish(wall)
+        
+        self.planner.plan_task(self.task)
+        path = self.planner.get_path()
+        self.path_pub.publish(path)
+        
         self.busy = False
 
 ###############################################################################

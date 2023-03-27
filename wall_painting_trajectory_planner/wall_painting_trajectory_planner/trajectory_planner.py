@@ -56,8 +56,8 @@ class TrajectoryPlanner:
         self.ctop = None
         self.task = None
 
-    def set_planning_scene(self, input_image, distance_map):
-        self.map = np.reshape(distance_map.data,(distance_map.width,distance_map.height))
+    def set_planning_scene(self, distance_map):
+        self.map = np.reshape(distance_map.data,(distance_map.height,distance_map.width))
         self.frame = distance_map.header.frame_id
         self.origin = [distance_map.origin.x, distance_map.origin.y, distance_map.origin.z]
         self.resolution = distance_map.resolution
@@ -67,6 +67,8 @@ class TrajectoryPlanner:
         self.ch = distance_map.canvas_height
         self.cleft = distance_map.canvas_origin.x
         self.ctop = distance_map.canvas_origin.y
+
+    def plan_task(self, input_image):
         self.task = self.get_task_from_image(input_image)
 
     def get_path_from_image(self, image):
@@ -74,29 +76,29 @@ class TrajectoryPlanner:
         #blur = cv2.blur(img, (35, 35))
         #thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
         thresh = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY_INV)[1]
-        
-        if self.cw > self.ch:
-            square_size = self.cw
-            mask = get_square(thresh, square_size)
-            delta = mask.shape[0] - self.ch
-            crop = np.take(mask,np.array(range(delta//2,mask.shape[0]-delta//2)),axis=0)
-        else:
-            square_size = self.ch
-            mask = get_square(thresh, square_size)
-            delta = mask.shape[1] - self.cw
-            crop = np.take(mask,np.array(range(delta//2,mask.shape[1]-delta//2)),axis=1)
 
-        norm = cv2.normalize(crop, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
+        square_size = self.cw if self.cw > self.ch else self.ch
+        mask = get_square(thresh, square_size)
+        
+        norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
         thresh2 = cv2.threshold(norm, 75, 255, cv2.THRESH_BINARY)[1]
         #res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
         #thin = cv2.ximgproc.thinning(res)
         #rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
         rot = cv2.rotate(thresh2, cv2.ROTATE_90_COUNTERCLOCKWISE)
         flip = cv2.flip(rot, 0)
+
+        if self.cw > self.ch:
+            delta = square_size - self.ch
+            crop = np.take(flip,np.array(range(delta//2,flip.shape[0]-delta//2)),axis=1)
+        else:
+            delta = square_size - self.cw
+            crop = np.take(flip,np.array(range(delta//2,flip.shape[1]-delta//2)),axis=0)
+
         print('------------>  here', self.cleft, self.ctop, self.cw, self.ch)
-        dmap = np.zeros(self.map.shape,int)
-        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(flip)
-        print('image:',flip.shape,' - dmap:',dmap.shape)
+        dmap = np.zeros(self.map.T.shape,int)
+        print('image:',crop.shape,' - dmap:',dmap.shape)
+        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
         print(pts)
 
@@ -109,7 +111,7 @@ class TrajectoryPlanner:
             grid_px, grid_py = np.meshgrid(temp_px, temp_py)
             list_px = grid_px.flatten()
             list_py = grid_py.flatten()
-            vals = [dmap[i,j] for i,j in zip(list_px,list_py)]
+            vals = [dmap[j,i] for i,j in zip(list_px,list_py)]
             grid = np.count_nonzero(vals)
             count.append(grid)
         assert len(count) == len(pts[0])
@@ -121,6 +123,7 @@ class TrajectoryPlanner:
         solver = PathSolver()
         path = solver.solve(adj,start,True)
         new_pts = pts[path].T
+        print(new_pts)
         return new_pts
 
     def get_task_from_image(self, input_image):
@@ -187,10 +190,12 @@ class TrajectoryPlanner:
 
     def get_wall(self):
         wall_msg = MarkerArray()
-        for i in range(int(self.cleft),int(self.cleft+self.cw)):
-            for j in range(int(self.ctop),int(self.ctop+self.ch)):
+        # for i in range(int(self.cleft),int(self.cleft+self.cw)):
+        #     for j in range(int(self.ctop),int(self.ctop+self.ch)):
+        for i in range(int(self.w)):
+            for j in range(int(self.h)):
                 m = Marker()
-                m.id = int(str(i)+str(j))
+                m.id = i*self.h+j
                 m.pose.position = self.get_position_at_(i,j)
                 m.header.frame_id = self.frame
                 m.scale.x = 0.2
