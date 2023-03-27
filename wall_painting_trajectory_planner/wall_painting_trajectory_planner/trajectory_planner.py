@@ -70,23 +70,35 @@ class TrajectoryPlanner:
         self.task = self.get_task_from_image(input_image)
 
     def get_path_from_image(self, image):
+        print('processing image')
         #blur = cv2.blur(img, (35, 35))
         #thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
         thresh = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY_INV)[1]
-        square_size = self.cw if self.cw > self.ch else self.ch
-        mask = get_square(thresh, square_size)
-        norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
+        
+        if self.cw > self.ch:
+            square_size = self.cw
+            mask = get_square(thresh, square_size)
+            delta = mask.shape[0] - self.ch
+            crop = np.take(mask,np.array(range(delta//2,mask.shape[0]-delta//2)),axis=0)
+        else:
+            square_size = self.ch
+            mask = get_square(thresh, square_size)
+            delta = mask.shape[1] - self.cw
+            crop = np.take(mask,np.array(range(delta//2,mask.shape[1]-delta//2)),axis=1)
+
+        norm = cv2.normalize(crop, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
         thresh2 = cv2.threshold(norm, 75, 255, cv2.THRESH_BINARY)[1]
         #res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
         #thin = cv2.ximgproc.thinning(res)
         #rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
         rot = cv2.rotate(thresh2, cv2.ROTATE_90_COUNTERCLOCKWISE)
         flip = cv2.flip(rot, 0)
+        print('------------>  here', self.cleft, self.ctop, self.cw, self.ch)
         dmap = np.zeros(self.map.shape,int)
         dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(flip)
-        #print('image:',flip.shape,' - dmap:',dmap.shape)
+        print('image:',flip.shape,' - dmap:',dmap.shape)
         pts = np.where(dmap>0)
-        #print(pts)
+        print(pts)
 
         s = 3
         count = []
@@ -112,8 +124,9 @@ class TrajectoryPlanner:
         return new_pts
 
     def get_task_from_image(self, input_image):
+        print('looking at image')
         output = cv2.connectedComponentsWithStatsWithAlgorithm(input_image,8,cv2.CV_16U,-1)
-        (numLabels, labels, stats, centroids) = output
+        (numLabels, labels, _, _) = output
         image_group = np.zeros((numLabels-1,)+input_image.shape, dtype=np.uint8)
         for l in range(1,numLabels):
             image_group[l-1][np.where(labels == l)] = 255
