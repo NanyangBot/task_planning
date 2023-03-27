@@ -91,7 +91,7 @@ class TSPsolver:
                     if curr_path[j] != -1:
                         visited[curr_path[j]] = True
 
-    def solve(self, adj, verbose=False):
+    def solve(self, adj, idx, verbose=False):
         self.n = len(adj)
         self.path = [None] * self.n
         self.score = self.maxsize
@@ -129,10 +129,11 @@ class TSPsolver:
                 path = self.path
 
         if verbose:
-            print('---')
-            print('TSP score (cost) :', score)
-            print('TSP solution (path) : ', end = ' ')
+            print('- Bround and Bound algorithm -')
+            print('Score (cost) :', score)
+            print('Solution (path) : ', end = ' ')
             for i in range(self.n):
                 print(path[i], end = ' ')
+            print('\n---')
         
         return path

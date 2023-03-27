@@ -1,12 +1,39 @@
 import cv2
 import numpy as np
+from skimage.transform import resize, pyramid_reduce
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Quaternion, PoseStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Path
 from wall_painting_trajectory_planner.tsp_solver import TSPsolver
+from wall_painting_trajectory_planner.dijkstra import PathSolver
 
 ###############################################################################
+
+def get_square(image, square_size):
+
+    height, width = image.shape
+    if(height > width):
+        differ = height
+    else:
+        differ = width
+    differ += 4
+
+    # square filler
+    mask = np.zeros((differ, differ), dtype = "uint8")
+
+    x_pos = int((differ - width) / 2)
+    y_pos = int((differ - height) / 2)
+
+    # center image inside the square
+    mask[y_pos: y_pos + height, x_pos: x_pos + width] = image[0: height, 0: width]
+
+    # downscale if needed
+    if differ / square_size > 1:
+        mask = pyramid_reduce(mask, differ / square_size)
+    else:
+        mask = resize(mask, (square_size, square_size))
+    return mask
 
 def get_quaternion(vec2, vec1=[1, 0, 0]):
     """get rotation matrix between two vectors using scipy"""
@@ -28,9 +55,8 @@ class TrajectoryPlanner:
         self.cleft = None
         self.ctop = None
         self.task = None
-        self.tsp = TSPsolver()
 
-    def set_planning_scene(self, input_task_image, distance_map):
+    def set_planning_scene(self, input_image, distance_map):
         self.map = np.reshape(distance_map.data,(distance_map.width,distance_map.height))
         self.frame = distance_map.header.frame_id
         self.origin = [distance_map.origin.x, distance_map.origin.y, distance_map.origin.z]
@@ -41,22 +67,63 @@ class TrajectoryPlanner:
         self.ch = distance_map.canvas_height
         self.cleft = distance_map.canvas_origin.x
         self.ctop = distance_map.canvas_origin.y
-        self.task = self.get_task_from_image(input_task_image)
+        self.task = self.get_task_from_image(input_image)
 
-    def get_task_from_image(self, input_task_image):
-        blur = cv2.blur(input_task_image, (35, 35))
-        thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
-        res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
-        rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    def get_path_from_image(self, image):
+        #blur = cv2.blur(img, (35, 35))
+        #thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
+        thresh = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY_INV)[1]
+        square_size = self.cw if self.cw > self.ch else self.ch
+        mask = get_square(thresh, square_size)
+        norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
+        thresh2 = cv2.threshold(norm, 75, 255, cv2.THRESH_BINARY)[1]
+        #res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
+        #thin = cv2.ximgproc.thinning(res)
+        #rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        rot = cv2.rotate(thresh2, cv2.ROTATE_90_COUNTERCLOCKWISE)
         flip = cv2.flip(rot, 0)
-        task_map = np.zeros(self.map.shape,int)
-        task_map[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(flip)
-        pts = np.where(task_map>0)
+        dmap = np.zeros(self.map.shape,int)
+        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(flip)
+        #print('image:',flip.shape,' - dmap:',dmap.shape)
+        pts = np.where(dmap>0)
+        #print(pts)
+
+        s = 3
+        count = []
+        for idx,(px,py) in enumerate(zip(*pts)):
+            assert dmap[px,py] == 255
+            temp_px = np.arange(max(px-s//2,0),min(px+s//2+1,dmap.shape[1])) # width
+            temp_py = np.arange(max(py-s//2,0),min(py+s//2+1,dmap.shape[0])) # height
+            grid_px, grid_py = np.meshgrid(temp_px, temp_py)
+            list_px = grid_px.flatten()
+            list_py = grid_py.flatten()
+            vals = [dmap[i,j] for i,j in zip(list_px,list_py)]
+            grid = np.count_nonzero(vals)
+            count.append(grid)
+        assert len(count) == len(pts[0])
+        start = np.argmin(count)
+
         pts = np.array(pts).T
         adj = [np.linalg.norm(pts-p,axis=1).tolist() for p in pts]
-        path = self.tsp.solve(adj)
+        #solver = TSPsolver()
+        solver = PathSolver()
+        path = solver.solve(adj,start,True)
         new_pts = pts[path].T
         return new_pts
+
+    def get_task_from_image(self, input_image):
+        output = cv2.connectedComponentsWithStatsWithAlgorithm(input_image,8,cv2.CV_16U,-1)
+        (numLabels, labels, stats, centroids) = output
+        image_group = np.zeros((numLabels-1,)+input_image.shape, dtype=np.uint8)
+        for l in range(1,numLabels):
+            image_group[l-1][np.where(labels == l)] = 255
+        
+        pts = []
+        for im in image_group:
+            pts.extend(self.get_path_from_image(im).tolist())
+        pts = np.array(pts)
+        #print(pts.shape)
+        return pts
 
     def get_position_at_(self,y,z):
         p = Point()
@@ -66,8 +133,8 @@ class TrajectoryPlanner:
         return p
 
     def get_orientation_at_(self,y,z,n=3,verbose=False):
-        temp_zs = np.arange(max(z-n+2,0),min(z+n-1,self.h))
-        temp_ys = np.arange(max(y-n+2,0),min(y+n-1,self.w))
+        temp_zs = np.arange(max(z-n//2,0),min(z+n//2+1,self.h))
+        temp_ys = np.arange(max(y-n//2,0),min(y+n//2+1,self.w))
         grid_ys, grid_zs = np.meshgrid(temp_ys,temp_zs)
         list_ys = grid_ys.flatten()
         list_zs = grid_zs.flatten()
@@ -127,13 +194,17 @@ class TrajectoryPlanner:
     def get_path(self):
         path_msg = Path()
         path_msg.header.frame_id = self.frame
+        
+        print('- Plane Estimation -')
         print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
-            print(i+1, end=' ')
             p = PoseStamped()
             p.pose.position = self.get_position_at_(y,z)
             p.pose.orientation = self.get_orientation_at_(y,z)
             p.header.frame_id = self.frame
             path_msg.poses.append(p)
+            print(i, end=' ')
+        print('\n---')
+        
         return path_msg
 
