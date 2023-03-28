@@ -168,7 +168,8 @@ class TrajectoryPlanner:
         errors = b - np.dot(A,fit)
 
         n = [-i[0] if fit[0][0]<0 else i[0] for i in fit]
-        quat = get_quaternion(n,[-1, 0, 0])
+        # quat = get_quaternion(n,[-1, 0, 0])
+        quat = get_quaternion([-1, 0, 0], [-1, 0, 0])
         q = Quaternion()
         q.x = quat[0]
         q.y = quat[1]
