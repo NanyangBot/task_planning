@@ -99,8 +99,8 @@ class TrajectoryPlanner:
         print('------------>  here', self.cleft, self.ctop, self.cw, self.ch)
         dmap = np.zeros(self.map.T.shape,int)
         print('image:',crop.shape,' - dmap:',dmap.shape)
-        #dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
-        dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
+        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
+        # dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
         print(pts)
 
