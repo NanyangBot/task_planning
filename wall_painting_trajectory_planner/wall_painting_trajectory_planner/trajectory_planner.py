@@ -43,7 +43,7 @@ def get_quaternion(vec2, vec1=[1, 0, 0]):
     return r[0].as_quat()
 
 class TrajectoryPlanner:
-    def __init__(self):
+    def __init__(self, logger):
         self.map = None
         self.frame = None
         self.origin = None
@@ -55,6 +55,7 @@ class TrajectoryPlanner:
         self.cleft = None
         self.ctop = None
         self.task = None
+        self.logger = logger
 
     def set_planning_scene(self, distance_map):
         self.map = np.reshape(distance_map.data,(distance_map.height,distance_map.width))
@@ -73,7 +74,7 @@ class TrajectoryPlanner:
         self.task = self.get_task_from_image(input_image)
 
     def get_path_from_image(self, image):
-        print('processing image')
+        self.logger.info('processing image')
         #blur = cv2.blur(img, (35, 35))
         #thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
         thresh = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY_INV)[1]
@@ -96,9 +97,9 @@ class TrajectoryPlanner:
             delta = square_size - self.cw
             crop = np.take(flip,np.array(range(delta//2,flip.shape[1]-delta//2)),axis=0)
 
-        print('------------>  here', self.cleft, self.ctop, self.cw, self.ch)
+        self.logger.info("------------>  here'{},{},{},{}".format(self.cleft, self.ctop, self.cw, self.ch))
         dmap = np.zeros(self.map.T.shape,int)
-        print('image:',crop.shape,' - dmap:',dmap.shape)
+        self.logger.info('image: {}, - dmap: {}'.format(crop.shape, dmap.shape))
         dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
         # dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
@@ -125,11 +126,12 @@ class TrajectoryPlanner:
         solver = PathSolver()
         path = solver.solve(adj,start,True)
         new_pts = pts[path].T
-        print(new_pts)
+        # self.logger.info(new_pts)
+        self.logger.info("------------>  herewwwwwwwwwwwww")
         return new_pts
 
     def get_task_from_image(self, input_image):
-        print('looking at image')
+        self.logger.info('looking at image 1')
         output = cv2.connectedComponentsWithStatsWithAlgorithm(input_image,8,cv2.CV_16U,-1)
         (numLabels, labels, _, _) = output
         image_group = np.zeros((numLabels-1,)+input_image.shape, dtype=np.uint8)

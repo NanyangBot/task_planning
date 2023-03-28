@@ -17,7 +17,7 @@ class TrajectoryPlannerNode(Node):
         super().__init__('trajectory_planner_node')
 
         self.busy = False
-        self.planner = TrajectoryPlanner()
+        self.planner = TrajectoryPlanner(self.get_logger())
         group_1 = ReentrantCallbackGroup()
         group_2 = ReentrantCallbackGroup()
         self.trigger_srv = self.create_service(
