@@ -41,7 +41,7 @@ class Node:
             self.neighbors.append(grid[neighbor_x+1][neighbor_y+1])
 
 
-class AStar:
+class PathSolver:
 
     def __init__(self, cols, rows, start, end, obstacle_list):
 
@@ -116,7 +116,7 @@ class AStar:
 
             print("Done !!")
 
-        open_set = AStar.clean_open_set(open_set, current_node)
+        open_set = PathSolver.clean_open_set(open_set, current_node)
         closed_set.append(current_node)
         neighbors = current_node.neighbors
         for neighbor in neighbors:
@@ -129,7 +129,7 @@ class AStar:
                     if neighbor.x == open_set[k].x and neighbor.y == open_set[k].y:
                         if temp_g < open_set[k].g:
                             open_set[k].g = temp_g
-                            open_set[k].h= AStar.h_score(open_set[k], end)
+                            open_set[k].h= PathSolver.h_score(open_set[k], end)
                             open_set[k].f = open_set[k].g + open_set[k].h
                             open_set[k].previous = current_node
                         else:
@@ -140,18 +140,17 @@ class AStar:
                     pass
                 else:
                     neighbor.g = temp_g
-                    neighbor.h = AStar.h_score(neighbor, end)
+                    neighbor.h = PathSolver.h_score(neighbor, end)
                     neighbor.f = neighbor.g + neighbor.h
                     neighbor.previous = current_node
                     open_set.append(neighbor)
 
         return open_set, closed_set, current_node, final_path
 
-    def main(self):
-
-        grid = AStar.create_grid(self.cols, self.rows)
-        grid = AStar.fill_grids(grid, self.cols, self.rows, self.obstacle_list)
-        grid = AStar.get_neighbors(grid, self.cols, self.rows)
+    def solve(self):
+        grid = PathSolver.create_grid(self.cols, self.rows)
+        grid = PathSolver.fill_grids(grid, self.cols, self.rows, self.obstacle_list)
+        grid = PathSolver.get_neighbors(grid, self.cols, self.rows)
         open_set  = []
         closed_set  = []
         current_node = None
@@ -159,7 +158,7 @@ class AStar:
         open_set.append(grid[self.start[0]][self.start[1]])
         self.end = grid[self.end[0]][self.end[1]]
         while len(open_set) > 0:
-            open_set, closed_set, current_node, final_path = AStar.start_path(open_set, closed_set, current_node, self.end)
+            open_set, closed_set, current_node, final_path = PathSolver.start_path(open_set, closed_set, current_node, self.end)
             if len(final_path) > 0:
                 break
 

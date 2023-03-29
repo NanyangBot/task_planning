@@ -19,7 +19,7 @@ class TrajectoryPlannerNode(Node):
         self.dmap = None
 
         self.busy = False
-        self.planner = TrajectoryPlanner()
+        self.planner = TrajectoryPlanner(self.get_logger())
 
         self.wall_pub = self.create_publisher(
             MarkerArray, 'wall', 1)
@@ -41,10 +41,10 @@ class TrajectoryPlannerNode(Node):
             message = "Can't open/read input image file: check file"
             self.get_logger().warn(message)
             return
-        
+
         self.task = np.copy(image)
         self.get_logger().info('Task received')
-        
+
     def dmap_cb(self, msg):
         if self.busy:
             message = 'Busy with previous task request'
@@ -58,11 +58,11 @@ class TrajectoryPlannerNode(Node):
         self.planner.set_planning_scene(self.dmap)
         wall = self.planner.get_wall()
         self.wall_pub.publish(wall)
-        
+
         self.planner.plan_task(self.task)
         path = self.planner.get_path()
         self.path_pub.publish(path)
-        
+
         self.busy = False
 
 ###############################################################################

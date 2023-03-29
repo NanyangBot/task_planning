@@ -6,7 +6,8 @@ from geometry_msgs.msg import Quaternion, PoseStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Path
 from wall_painting_trajectory_planner.tsp_solver import TSPsolver
-from wall_painting_trajectory_planner.dijkstra import PathSolver
+#from wall_painting_trajectory_planner.dijkstra import PathSolver
+from wall_painting_trajectory_planner.astar import PathSolver
 
 ###############################################################################
 
@@ -58,7 +59,7 @@ class TrajectoryPlanner:
         self.logger = logger
 
     def set_planning_scene(self, distance_map):
-        self.map = np.reshape(distance_map.data,(distance_map.height,distance_map.width))
+        self.map = np.reshape(distance_map.data,(distance_map.height, distance_map.width))
         self.frame = distance_map.header.frame_id
         self.origin = [distance_map.origin.x, distance_map.origin.y, distance_map.origin.z]
         self.resolution = distance_map.resolution
@@ -81,7 +82,7 @@ class TrajectoryPlanner:
 
         square_size = self.cw if self.cw > self.ch else self.ch
         mask = get_square(thresh, square_size)
-        
+
         norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
         thresh2 = cv2.threshold(norm, 75, 255, cv2.THRESH_BINARY)[1]
         #res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
@@ -119,14 +120,40 @@ class TrajectoryPlanner:
             count.append(grid)
         assert len(count) == len(pts[0])
         start = np.argmin(count)
-
         pts = np.array(pts).T
-        adj = [np.linalg.norm(pts-p,axis=1).tolist() for p in pts]
+
+        # TSP solver (only knows starting point)
+        #adj = [np.linalg.norm(pts-p,axis=1).tolist() for p in pts]
         #solver = TSPsolver()
-        solver = PathSolver()
-        path = solver.solve(adj,start,True)
-        new_pts = pts[path].T
-        # self.logger.info(new_pts)
+        #path = solver.solve(adj,start,True)
+        #new_pts = pts[path].T
+
+        # Greedy search (only knows starting point)
+        #adj = [np.linalg.norm(pts-p,axis=1).tolist() for p in pts]
+        #solver = PathSolver()
+        #path = solver.solve(adj,start,True)
+        #new_pts = pts[path].T
+
+        # A* search (knows starting point and goal point)
+        end = np.argsort(count)[1]
+        ctn = 0
+        while (abs(start-end) == 1):
+            end = np.argsort(count)[ctn+2]
+            ctn += 1
+        data = np.argwhere(crop == 0)
+
+        cols = crop.shape[0]
+        rows = crop.shape[1]
+
+        start_x, start_y = pts[start]
+        end_x, end_y = pts[end]
+
+        solver = PathSolver(cols, rows, [start_x, start_y], [end_x, end_y], data)
+        path = solver.solve()
+        new_pts = np.array([[p.x, p.y] for p in path[::-1]])
+        new_pts = np.append(new_pts,[pts[end]],axis=0).T
+
+        #self.logger.info(new_pts)
         self.logger.info("------------>  herewwwwwwwwwwwww")
         return new_pts
 
@@ -137,7 +164,7 @@ class TrajectoryPlanner:
         image_group = np.zeros((numLabels-1,)+input_image.shape, dtype=np.uint8)
         for l in range(1,numLabels):
             image_group[l-1][np.where(labels == l)] = 255
-        
+
         pts = []
         for im in image_group:
             pts.extend(self.get_path_from_image(im).tolist())
@@ -220,7 +247,7 @@ class TrajectoryPlanner:
     def get_path(self):
         path_msg = Path()
         path_msg.header.frame_id = self.frame
-        
+
         print('- Plane Estimation -')
         print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
@@ -234,6 +261,6 @@ class TrajectoryPlanner:
             path_msg.poses.append(p)
             print(i, end=' ')
         print('\n---')
-        
+
         return path_msg
 
