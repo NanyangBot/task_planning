@@ -76,25 +76,22 @@ class TrajectoryPlanner:
 
     def get_path_from_image(self, image):
         self.logger.info('processing image')
-        #blur = cv2.blur(img, (35, 35))
-        #thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY_INV)[1]
-        thresh = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY_INV)[1]
 
         square_size = self.cw if self.cw > self.ch else self.ch
-        mask = get_square(thresh, square_size)
+        mask = get_square(image, square_size)
 
-        norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_16U).astype(np.uint8)
+        norm = cv2.normalize(mask, None, alpha=255, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         thresh2 = cv2.threshold(norm, 75, 255, cv2.THRESH_BINARY)[1]
-        #res = cv2.resize(thresh, (self.cw, self.ch), cv2.INTER_AREA)
-        #thin = cv2.ximgproc.thinning(res)
-        #rot = cv2.rotate(res, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
         rot = cv2.rotate(thresh2, cv2.ROTATE_90_COUNTERCLOCKWISE)
         flip = cv2.flip(rot, 0)
+        crop = np.copy(flip)
 
         if self.cw > self.ch:
             delta = square_size - self.ch
             crop = np.take(flip,np.array(range(delta//2,flip.shape[0]-delta//2)),axis=1)
-        else:
+
+        if self.cw < self.ch:
             delta = square_size - self.cw
             crop = np.take(flip,np.array(range(delta//2,flip.shape[1]-delta//2)),axis=0)
 
@@ -106,7 +103,8 @@ class TrajectoryPlanner:
         pts = np.where(dmap>0)
         print(pts)
 
-        s = 3
+        #s = 3
+        s = 5
         count = []
         for idx,(px,py) in enumerate(zip(*pts)):
             assert dmap[px,py] == 255
@@ -115,11 +113,12 @@ class TrajectoryPlanner:
             grid_px, grid_py = np.meshgrid(temp_px, temp_py)
             list_px = grid_px.flatten()
             list_py = grid_py.flatten()
-            vals = [dmap[j,i] for i,j in zip(list_px,list_py)]
+            vals = [dmap[i,j] for i,j in zip(list_px,list_py)]
             grid = np.count_nonzero(vals)
             count.append(grid)
         assert len(count) == len(pts[0])
-        start = np.argmin(count)
+        sort = np.argsort(count)
+        start = sort[0]
         pts = np.array(pts).T
 
         # TSP solver (only knows starting point)
@@ -135,15 +134,15 @@ class TrajectoryPlanner:
         #new_pts = pts[path].T
 
         # A* search (knows starting point and goal point)
-        end = np.argsort(count)[1]
+        end = sort[1]
         ctn = 0
         while (abs(start-end) == 1):
-            end = np.argsort(count)[ctn+2]
+            end = sort[ctn+2]
             ctn += 1
-        data = np.argwhere(crop == 0)
+        data = np.argwhere(dmap == 0)
 
-        cols = crop.shape[0]
-        rows = crop.shape[1]
+        cols = dmap.shape[0]
+        rows = dmap.shape[1]
 
         start_x, start_y = pts[start]
         end_x, end_y = pts[end]
@@ -159,15 +158,20 @@ class TrajectoryPlanner:
 
     def get_task_from_image(self, input_image):
         self.logger.info('looking at image 1')
-        output = cv2.connectedComponentsWithStatsWithAlgorithm(input_image,8,cv2.CV_16U,-1)
+        blur = cv2.blur(input_image, (35, 35))
+        thresh = cv2.threshold(blur, 250, 255, 0)[1]
+        bit = cv2.bitwise_not(thresh)
+        output = cv2.connectedComponentsWithStatsWithAlgorithm(bit,8,cv2.CV_16U,-1)
         (numLabels, labels, _, _) = output
         image_group = np.zeros((numLabels-1,)+input_image.shape, dtype=np.uint8)
         for l in range(1,numLabels):
             image_group[l-1][np.where(labels == l)] = 255
 
+        print(image_group.shape)
         pts = []
         for im in image_group:
-            pts.extend(self.get_path_from_image(im).tolist())
+            img_in = cv2.ximgproc.thinning(im, cv2.ximgproc.THINNING_ZHANGSUEN)
+            pts.extend(self.get_path_from_image(img_in).tolist())
         pts = np.array(pts)
         #print(pts.shape)
         return pts
@@ -223,8 +227,6 @@ class TrajectoryPlanner:
 
     def get_wall(self):
         wall_msg = MarkerArray()
-        # for i in range(int(self.cleft),int(self.cleft+self.cw)):
-        #     for j in range(int(self.ctop),int(self.ctop+self.ch)):
         for i in range(int(self.w)):
             for j in range(int(self.h)):
                 if self.map[j,i].item() == self.unknown_value:
