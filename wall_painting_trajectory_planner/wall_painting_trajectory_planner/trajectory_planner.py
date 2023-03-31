@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Quaternion, PoseStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Path
-from wall_painting_trajectory_planner.tsp_solver import TSPsolver
+#from wall_painting_trajectory_planner.tsp_solver import TSPsolver
 #from wall_painting_trajectory_planner.dijkstra import PathSolver
 from wall_painting_trajectory_planner.astar import PathSolver
 
@@ -89,17 +89,17 @@ class TrajectoryPlanner:
 
         if self.cw > self.ch:
             delta = square_size - self.ch
-            crop = np.take(flip,np.array(range(delta//2,flip.shape[0]-delta//2)),axis=1)
+            crop = np.take(flip,np.arange(delta//2,flip.shape[0]-delta//2),axis=1)
 
         if self.cw < self.ch:
             delta = square_size - self.cw
-            crop = np.take(flip,np.array(range(delta//2,flip.shape[1]-delta//2)),axis=0)
+            crop = np.take(flip,np.arange(delta//2,flip.shape[1]-delta//2),axis=0)
 
         self.logger.info("------------>  here'{},{},{},{}".format(self.cleft, self.ctop, self.cw, self.ch))
         dmap = np.zeros(self.map.T.shape,int)
         self.logger.info('image: {}, - dmap: {}'.format(crop.shape, dmap.shape))
         dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
-        # dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
+        #dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
         print(pts)
 
@@ -108,8 +108,8 @@ class TrajectoryPlanner:
         count = []
         for idx,(px,py) in enumerate(zip(*pts)):
             assert dmap[px,py] == 255
-            temp_px = np.arange(max(px-s//2,0),min(px+s//2+1,dmap.shape[1])) # width
-            temp_py = np.arange(max(py-s//2,0),min(py+s//2+1,dmap.shape[0])) # height
+            temp_px = np.arange(max(px-s//2,0),min(px+s//2+1,dmap.shape[0])) # width
+            temp_py = np.arange(max(py-s//2,0),min(py+s//2+1,dmap.shape[1])) # height
             grid_px, grid_py = np.meshgrid(temp_px, temp_py)
             list_px = grid_px.flatten()
             list_py = grid_py.flatten()
