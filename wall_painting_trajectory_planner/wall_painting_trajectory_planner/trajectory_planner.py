@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from scipy.signal import savgol_filter
 from skimage.transform import resize, pyramid_reduce
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Quaternion, PoseStamped, Point
@@ -152,6 +153,14 @@ class TrajectoryPlanner:
         new_pts = np.array([[p.x, p.y] for p in path[::-1]])
         new_pts = np.append(new_pts,[pts[end]],axis=0).T
 
+        x = new_pts[0]
+        y = new_pts[1]
+        n = len(x)
+        span = n//10 if n>20 else 2
+        xhat = savgol_filter(x, span, 1)
+        yhat = savgol_filter(y, span, 1)
+        new_pts = np.vstack((xhat,yhat))
+
         #self.logger.info(new_pts)
         self.logger.info("------------>  herewwwwwwwwwwwww")
         return new_pts
@@ -176,12 +185,12 @@ class TrajectoryPlanner:
         #print(pts.shape)
         return pts
 
-    def get_position_at_(self,y,z):
+    def get_position_at_(self,y,z,y_int,z_int):
         p = Point()
         p.z = self.origin[2]- z * self.resolution
         # p.y = self.origin[1]- y * self.resolution
         p.y = self.origin[1]+ y * self.resolution
-        p.x = -self.map[z,y].item()
+        p.x = -self.map[z_int,y_int].item()
         return p
 
     def get_orientation_at_(self,y,z,n=3,verbose=False):
@@ -233,7 +242,7 @@ class TrajectoryPlanner:
                     continue
                 m = Marker()
                 m.id = i*self.h+j
-                m.pose.position = self.get_position_at_(i,j)
+                m.pose.position = self.get_position_at_(i,j,i,j)
                 m.header.frame_id = self.frame
                 m.scale.x = 0.2
                 m.scale.y = 0.2
@@ -253,12 +262,13 @@ class TrajectoryPlanner:
         print('- Plane Estimation -')
         print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
-            if self.map[z,y].item() == self.unknown_value:
+            y_int, z_int = int(y), int(z)
+            if self.map[z_int,y_int].item() == self.unknown_value:
                 print('-', end=' ')
                 continue
             p = PoseStamped()
-            p.pose.position = self.get_position_at_(y,z)
-            p.pose.orientation = self.get_orientation_at_(y,z)
+            p.pose.position = self.get_position_at_(y,z,y_int,z_int)
+            p.pose.orientation = self.get_orientation_at_(y_int,z_int)
             p.header.frame_id = self.frame
             path_msg.poses.append(p)
             print(i, end=' ')
