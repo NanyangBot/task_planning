@@ -35,7 +35,11 @@ def get_square(image, square_size):
         mask = pyramid_reduce(mask, differ / square_size)
     else:
         mask = resize(mask, (square_size, square_size))
-    return mask
+
+    if (mask.shape[0] > square_size):
+        return mask[:-1,:-1]
+    else:
+        return mask
 
 def get_quaternion(vec2, vec1=[1, 0, 0]):
     """get rotation matrix between two vectors using scipy"""
@@ -86,11 +90,11 @@ class TrajectoryPlanner:
 
         rot = cv2.rotate(thresh2, cv2.ROTATE_90_COUNTERCLOCKWISE)
         flip = cv2.flip(rot, 0)
+        print(flip.shape)
         crop = np.copy(flip)
 
         if self.cw > self.ch:
             delta = square_size - self.ch
-            # crop = np.take(flip,np.arange(delta//2,flip.shape[0]-delta//2),axis=1)
             crop = np.take(flip,np.arange(delta//2,flip.shape[0]-delta+delta//2),axis=1)
 
         if self.cw < self.ch:
@@ -103,6 +107,7 @@ class TrajectoryPlanner:
         dmap = np.zeros(self.map.T.shape,int)
         self.logger.info('image: {}, - dmap: {}'.format(crop.shape, dmap.shape))
         dmap[self.cleft:(self.cleft+self.cw),self.ctop:(self.ctop+self.ch)] = np.copy(crop)
+
         # dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop-self.ch):int(self.ctop)] = np.copy(crop)
         #dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
@@ -156,7 +161,9 @@ class TrajectoryPlanner:
 
         solver = PathSolver(cols, rows, [start_x, start_y], [end_x, end_y], data)
         path = solver.solve()
+        #print('path: ',path)
         new_pts = np.array([[p.x, p.y] for p in path[::-1]])
+        #print('new points: ',new_pts,[pts[end]])
         new_pts = np.append(new_pts,[pts[end]],axis=0).T
 
         x = new_pts[0]
@@ -173,8 +180,10 @@ class TrajectoryPlanner:
 
     def get_task_from_image(self, input_image):
         self.logger.info('looking at image 1')
+
         blur = cv2.blur(input_image, (15, 15))
         # blur = cv2.blur(input_image, (35, 35))
+
         thresh = cv2.threshold(blur, 250, 255, 0)[1]
         bit = cv2.bitwise_not(thresh)
         output = cv2.connectedComponentsWithStatsWithAlgorithm(bit,8,cv2.CV_16U,-1)
