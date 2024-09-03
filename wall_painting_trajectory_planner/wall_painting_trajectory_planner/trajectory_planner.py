@@ -204,12 +204,13 @@ class TrajectoryPlanner:
 
     def get_position_at_(self,y,z,y_int,z_int):
         p = Point()
-        # p.z = self.origin[2]- z * self.resolution
-        # p.y = self.origin[1]+ y * self.resolution
-        # p.x = -self.map[z_int,y_int].item()
         p.z = self.origin[2]- z * self.resolution
-        p.y = self.origin[1]- y * self.resolution
-        p.x = self.map[z_int,y_int].item() -1.5 # 1m displacement in the -x direction (away from wall) zyadan hstju
+        p.y = self.origin[1]+ y * self.resolution
+        p.x = -self.map[z_int,y_int].item()
+        # p.z = self.origin[2]- z * self.resolution
+        # p.y = self.origin[1]- y * self.resolution
+        # p.x = self.map[z_int,y_int].item() -1.5 # 1m displacement in the -x direction (away from wall) zyadan hstju
+        # p.x = self.map[z_int,y_int].item() # 1m displacement in the -x direction (away from wall) zyadan hstju
         return p
 
     def get_orientation_at_(self,y,z,n=3,verbose=False):
@@ -241,8 +242,12 @@ class TrajectoryPlanner:
         q = Quaternion()  #ZYD01003
         q.x = float(0)    # this is temporary hard code value. zyadan. hstju
         q.y = float(0)
-        q.z = float(0)
-        q.w = float(1)
+        q.z = float(1)
+        q.w = float(0)
+        # q.x = float(0)    # this is temporary hard code value. zyadan. hstju
+        # q.y = float(0)
+        # q.z = float(0)
+        # q.w = float(1)
 
         if verbose:
             print("===========================")
@@ -254,8 +259,8 @@ class TrajectoryPlanner:
             print(errors)
             print("Normal vector:")
             print(n)
-            print("Quaternion:")
-            print(quat)
+            # print("Quaternion:")
+            # print(quat)
             print("===========================")
 
         return q
@@ -288,6 +293,7 @@ class TrajectoryPlanner:
         print('- Plane Estimation -')
         print('Processing Point : ', end=' ')
         for i,(y,z) in enumerate(zip(*self.task)):
+            if i%10>0: continue # Optional condition to reduce point density in task trajectory
             y_int, z_int = int(y), int(z)
             if self.map[z_int,y_int].item() == self.unknown_value:
                 print('-', end=' ')
