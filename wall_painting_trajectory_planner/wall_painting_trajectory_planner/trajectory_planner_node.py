@@ -8,6 +8,7 @@ from nav_msgs.msg import Path
 from visualization_msgs.msg import MarkerArray
 from task_msgs.srv import DistanceMapSrv, TaskPlanning
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.qos import QoSProfile, DurabilityPolicy
 from wall_painting_trajectory_planner.trajectory_planner import TrajectoryPlanner
 
 ###############################################################################
@@ -28,11 +29,13 @@ class TrajectoryPlannerNode(Node):
             self.get_logger().warn('service not available, waiting again...')
         self.req = DistanceMapSrv.Request()
 
+        # latched so RViz still gets the last wall/path when it subscribes late
+        latched_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.wall_pub = self.create_publisher(
-            MarkerArray, 'wall', 1)
+            MarkerArray, 'wall', latched_qos)
 
         self.path_pub = self.create_publisher(
-            Path, 'path', 1)
+            Path, 'path', latched_qos)
 
         self.get_logger().info('Ready to accept Task Request')
 

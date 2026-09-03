@@ -99,7 +99,16 @@ class TrajectoryPlanner:
         self.logger.info("------------>  here'{},{},{},{}".format(self.cleft, self.ctop, self.cw, self.ch))
         dmap = np.zeros(self.map.T.shape,int)
         self.logger.info('image: {}, - dmap: {}'.format(crop.shape, dmap.shape))
-        dmap[int(self.cleft):int(self.cleft+self.cw),int(self.ctop):int(self.ctop+self.ch)] = np.copy(crop)
+        # clip the canvas window to the distance map bounds - the RANSAC wall
+        # extraction does not always cover the full canvas area
+        x0, y0 = int(self.cleft), int(self.ctop)
+        x1, y1 = x0 + crop.shape[0], y0 + crop.shape[1]
+        dx0, dy0 = max(x0, 0), max(y0, 0)
+        dx1, dy1 = min(x1, dmap.shape[0]), min(y1, dmap.shape[1])
+        if dx0 < dx1 and dy0 < dy1:
+            dmap[dx0:dx1, dy0:dy1] = np.copy(crop[dx0 - x0:dx1 - x0, dy0 - y0:dy1 - y0])
+        else:
+            self.logger.warn('canvas window entirely outside distance map, skipping paste')
         #dmap[0:int(self.cw),0:int(self.ch)] = np.copy(crop)
         pts = np.where(dmap>0)
         print(pts)
