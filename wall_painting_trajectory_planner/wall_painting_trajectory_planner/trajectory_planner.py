@@ -194,12 +194,16 @@ class TrajectoryPlanner:
         #print(pts.shape)
         return pts
 
+    # spray standoff: place the generated trajectory this far in front of
+    # the wall surface (toward the robot) instead of on the surface itself
+    STANDOFF = 0.15
+
     def get_position_at_(self,y,z,y_int,z_int):
         p = Point()
         p.z = self.origin[2]- z * self.resolution
         # p.y = self.origin[1]- y * self.resolution
         p.y = self.origin[1]+ y * self.resolution
-        p.x = -self.map[z_int,y_int].item()
+        p.x = -self.map[z_int,y_int].item() + self.STANDOFF
         return p
 
     def get_orientation_at_(self,y,z,n=3,verbose=False):
